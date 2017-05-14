@@ -127,6 +127,8 @@ char *XSetIMValues(XIM, ...); /* Hack for XFree86 4.0 */
 #endif /* __MAKEDEPEND__ */
 
 #include <iconv.h>
+#include <X11/Xft/Xft.h>
+
 /*
  * Include some helpful X11 code.
  */
@@ -1670,12 +1672,48 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 		size_t inlen = len;
 		size_t outlen = len * 2;
 		char *kanji = malloc(outlen);
+		memset(kanji, 0, outlen);
 		char *sp = str; char *kp = kanji;
 		size_t n = iconv(cd, &sp, &inlen, &kp, &outlen);
 		iconv_close(cd);
 
+#if 0
 		XmbDrawImageString(Metadpy->dpy, Infowin->win, Infofnt->info,
 				Infoclr->gc, x, y, kanji, kp-kanji);
+#endif
+		/* XmbDrawImageString(Metadpy->dpy, Infowin->win, Infofnt->info, */
+		/* 		   Infoclr->gc, x, y, kanji, kp-kanji); */
+		Colormap cmap = DefaultColormap(Metadpy->dpy, 0);
+		XftColor fgcolor, bgcolor;
+		/* XftColorAllocName(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), */
+		/* 		  cmap, "white", &color); */
+		XRenderColor xcol = {0};
+		xcol.red = ((Infoclr->fg >> 16) & 0xff) << 8;
+		xcol.green = ((Infoclr->fg >> 8) & 0xff) << 8;
+		xcol.blue = ((Infoclr->fg >> 0) & 0xff) << 8;
+		xcol.alpha = 0xffff;
+		XftColorAllocValue(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &xcol, &fgcolor);
+		xcol.red = ((Infoclr->bg >> 16) & 0xff) << 8;
+		xcol.green = ((Infoclr->bg >> 8) & 0xff) << 8;
+		xcol.blue = ((Infoclr->bg >> 0) & 0xff) << 8;
+		XftColorAllocValue(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &xcol, &bgcolor);
+#define FONT_NAME "Migu 1M"
+#define FONT_SIZE 22
+		XftDraw* draw = XftDrawCreate(Metadpy->dpy, Infowin->win,
+					      DefaultVisual(Metadpy->dpy, 0), cmap);
+		XftFont* xftFont = XftFontOpen(Metadpy->dpy, 0,
+					       XFT_FAMILY, XftTypeString, FONT_NAME,
+					       XFT_SIZE, XftTypeDouble, (double)(FONT_SIZE), NULL);
+		XGlyphInfo extents;
+		XftTextExtentsUtf8(Metadpy->dpy, xftFont, kanji, strlen(kanji), &extents);
+		XftDrawRect(draw, &bgcolor, x, y-Infofnt->asc,
+			    Infofnt->wid*len, Infofnt->hgt);
+		XftDrawStringUtf8(draw, &fgcolor, xftFont,
+				  x, y-Infofnt->asc+xftFont->ascent,
+				  (FcChar8*)kanji, strlen(kanji));
+		XftDrawDestroy(draw);
+		XftColorFree(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &fgcolor);
+		XftColorFree(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &bgcolor);
 		free(kanji);
 #else
 		XDrawImageString(Metadpy->dpy, Infowin->win, Infoclr->gc,

@@ -51,7 +51,7 @@ AC_ARG_ENABLE(chuukei,
 
 dnl Checks for libraries.
 dnl Replace `main' with a function in -lncurses:
-AC_CHECK_LIB(ncursesw, initscr, [AC_DEFINE(USE_GCU, 1, [Allow -mGCU environment]) AC_DEFINE(USE_NCURSES, 1, [Use ncurses]) LIBS="$LIBS -lncursesw"])
+AC_CHECK_LIB(ncursesw, initscr, [AC_DEFINE(USE_GCU, 1, [Allow -mGCU environment]) AC_DEFINE(USE_NCURSES, 1, [Use ncurses]) LIBS="$LIBS -lncursesw -ltinfo"])
 if test "$ac_cv_lib_ncursesw_initscr" != yes; then
   AC_CHECK_LIB(ncurses, initscr, [AC_DEFINE(USE_GCU, 1, [Allow -mGCU environment]) AC_DEFINE(USE_NCURSES, 1, [Use ncurses]) LIBS="$LIBS -lncurses"])
   if test "$ac_cv_lib_ncurses_initscr" != yes; then
@@ -63,6 +63,9 @@ if test "$ac_cv_lib_ncursesw_initscr" != yes; then
 fi
 
 AC_CHECK_LIB(iconv, iconv_open)
+PKG_CHECK_MODULES(XFT, [xft])
+CFLAGS="$CFLAGS $XFT_CFLAGS"
+LIBS="$LIBS $XFT_LIBS"
 
 AC_CHECK_FILE(/dev/urandom, AC_DEFINE(RNG_DEVICE, "/dev/urandom", [Random Number Generation device file]))
 
