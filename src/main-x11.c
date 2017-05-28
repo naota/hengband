@@ -1681,12 +1681,8 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 		XmbDrawImageString(Metadpy->dpy, Infowin->win, Infofnt->info,
 				Infoclr->gc, x, y, kanji, kp-kanji);
 #endif
-		/* XmbDrawImageString(Metadpy->dpy, Infowin->win, Infofnt->info, */
-		/* 		   Infoclr->gc, x, y, kanji, kp-kanji); */
 		Colormap cmap = DefaultColormap(Metadpy->dpy, 0);
 		XftColor fgcolor, bgcolor;
-		/* XftColorAllocName(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), */
-		/* 		  cmap, "white", &color); */
 		XRenderColor xcol = {0};
 		xcol.red = ((Infoclr->fg >> 16) & 0xff) << 8;
 		xcol.green = ((Infoclr->fg >> 8) & 0xff) << 8;
