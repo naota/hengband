@@ -127,7 +127,9 @@ char *XSetIMValues(XIM, ...); /* Hack for XFree86 4.0 */
 #endif /* __MAKEDEPEND__ */
 
 #include <iconv.h>
+#ifdef USE_XFT
 #include <X11/Xft/Xft.h>
+#endif
 
 /*
  * Include some helpful X11 code.
@@ -1677,10 +1679,10 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 		size_t n = iconv(cd, &sp, &inlen, &kp, &outlen);
 		iconv_close(cd);
 
-#if 0
+#ifndef USE_XFT
 		XmbDrawImageString(Metadpy->dpy, Infowin->win, Infofnt->info,
 				Infoclr->gc, x, y, kanji, kp-kanji);
-#endif
+#else
 		Colormap cmap = DefaultColormap(Metadpy->dpy, 0);
 		XftColor fgcolor, bgcolor;
 		XRenderColor xcol = {0};
@@ -1711,7 +1713,8 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 		XftColorFree(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &fgcolor);
 		XftColorFree(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &bgcolor);
 		free(kanji);
-#else
+#endif
+#else /* USE_FONTSET */
 		XDrawImageString(Metadpy->dpy, Infowin->win, Infoclr->gc,
 				 x, y, str, len);
 #endif

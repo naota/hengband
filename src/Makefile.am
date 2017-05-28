@@ -31,6 +31,8 @@ EXTRA_hengband_SOURCES = \
 	makefile.bcc makefile.std makefile.dos makefile.ibm \
 	readdib.c wall.bmp
 
+CFLAGS+=$(XFT_CFLAGS)
+LIBS+=$(XFT_LIBS)
 COMPILE = ./gcc-wrap $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 

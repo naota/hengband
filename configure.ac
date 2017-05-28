@@ -44,10 +44,17 @@ AC_ARG_ENABLE(xim,
 [  --disable-xim           disable xim support], use_xim=no, use_xim=yes)
 AC_ARG_ENABLE(fontset,
 [  --disable-fontset       disable fontset support], use_fontset=no, use_fontset=yes)
+AC_ARG_ENABLE([xft],
+	AS_HELP_STRING([--enable-xft], [Enable xft support]))
 AC_ARG_ENABLE(worldscore,
 [  --disable-worldscore    disable worldscore support], ,AC_DEFINE(WORLD_SCORE, 1, [Allow the game to send scores to the score server]))
 AC_ARG_ENABLE(chuukei,
 [  --enable-chuukei        enable internet chuukei support], AC_DEFINE(CHUUKEI, 1, [Chuukei mode]))
+
+AS_IF([test "x$enable_xft" = "xyes"], [
+  PKG_CHECK_MODULES(XFT, [xft],
+     [AC_DEFINE([USE_XFT], [1], [Use XFT])])
+])
 
 dnl Checks for libraries.
 dnl Replace `main' with a function in -lncurses:
@@ -63,9 +70,6 @@ if test "$ac_cv_lib_ncursesw_initscr" != yes; then
 fi
 
 AC_CHECK_LIB(iconv, iconv_open)
-PKG_CHECK_MODULES(XFT, [xft])
-CFLAGS="$CFLAGS $XFT_CFLAGS"
-LIBS="$LIBS $XFT_LIBS"
 
 AC_CHECK_FILE(/dev/urandom, AC_DEFINE(RNG_DEVICE, "/dev/urandom", [Random Number Generation device file]))
 
