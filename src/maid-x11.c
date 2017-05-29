@@ -77,7 +77,11 @@ static int gamma_val = 0;
 /*
  * Hack -- Convert an RGB value to an X11 Pixel, or die.
  */
+#ifdef USE_XFT
+static XftColor create_pixel(Display *dpy, byte red, byte green, byte blue)
+#else
 static unsigned long create_pixel(Display *dpy, byte red, byte green, byte blue)
+#endif
 {
 	Colormap cmap = DefaultColormapOfScreen(DefaultScreenOfDisplay(dpy));
 	XColor xcolour;
@@ -112,6 +116,22 @@ static unsigned long create_pixel(Display *dpy, byte red, byte green, byte blue)
 	xcolour.blue = blue * 255;
 	xcolour.flags = DoRed | DoGreen | DoBlue;
 
+
+#ifdef USE_XFT
+	XftColor color;
+	XRenderColor xcol;
+	Visual *vis = DefaultVisual(dpy, 0);
+	xcol.red = xcolour.red;
+	xcol.green = xcolour.green;
+	xcol.blue = xcolour.blue;
+	if (!XftColorAllocValue(dpy, DefaultVisual(dpy, 0), cmap, &xcol, &color))
+	{
+		quit_fmt("Couldn't allocate bitmap color '#%02x%02x%02x'\n",
+			 red, green, blue);
+	}
+
+	return color;
+#else
 	/* Attempt to Allocate the Parsed color */
 	if (!(XAllocColor(dpy, cmap, &xcolour)))
 	{
@@ -120,6 +140,7 @@ static unsigned long create_pixel(Display *dpy, byte red, byte green, byte blue)
 	}
 
 	return (xcolour.pixel);
+#endif
 }
 
 
@@ -225,7 +246,11 @@ static XImage *ReadBMP(Display *dpy, char *Name)
 
 	int x, y;
 
+#ifdef USE_XFT
+	XftColor clr_pixels[256];
+#else
 	unsigned long clr_pixels[256];
+#endif
 
 
 	/* Open the BMP file */
@@ -317,6 +342,9 @@ static XImage *ReadBMP(Display *dpy, char *Name)
 			/* Verify not at end of file XXX XXX */
 			if (feof(f)) quit_fmt("Unexpected end of file in %s", Name);
 
+#ifdef USE_XFT
+			quit_fmt("Not supported on Xft");
+#else
 			if (infoheader.biBitCount == 24)
 			{
 				int c2 = getc(f);
@@ -343,6 +371,7 @@ static XImage *ReadBMP(Display *dpy, char *Name)
 				quit_fmt("Illegal biBitCount %d in %s",
 					 infoheader.biBitCount, Name);
 			}
+#endif
 		}
 	}
 

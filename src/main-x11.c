@@ -129,6 +129,7 @@ char *XSetIMValues(XIM, ...); /* Hack for XFree86 4.0 */
 #include <iconv.h>
 #ifdef USE_XFT
 #include <X11/Xft/Xft.h>
+#include <assert.h>
 #endif
 
 /*
@@ -169,7 +170,11 @@ char *XSetIMValues(XIM, ...); /* Hack for XFree86 4.0 */
 /*
  * An X11 pixell specifier
  */
+#ifndef USE_XFT
 typedef unsigned long Pixell;
+#else
+typedef XftColor Pixell;
+#endif
 
 /*
  * The structures defined below
@@ -230,7 +235,9 @@ struct metadpy
 
 	Pixell bg;
 	Pixell fg;
+#ifndef USE_XFT
 	Pixell zg;
+#endif
 
 	uint mono:1;
 	uint color:1;
@@ -271,6 +278,9 @@ struct infowin
 #ifdef USE_XIM
 	XIC xic;
 	long xic_mask;
+#endif
+#ifdef USE_XFT
+	XftDraw *draw;
 #endif
 
 	long mask;
@@ -314,7 +324,9 @@ struct infowin
  */
 struct infoclr
 {
+#ifndef USE_XFT
 	GC gc;
+#endif
 
 	Pixell fg;
 	Pixell bg;
@@ -542,8 +554,14 @@ static errr Metadpy_init_2(Display *dpy, cptr name)
 	m->depth = DefaultDepthOfScreen(m->screen);
 
 	/* Save the Standard Colors */
+#ifndef USE_XFT
 	m->black = BlackPixelOfScreen(m->screen);
 	m->white = WhitePixelOfScreen(m->screen);
+#else
+	Visual *vis = DefaultVisual(dpy, 0);
+	XftColorAllocName(dpy, vis, m->cmap, "black", &m->black);
+	XftColorAllocName(dpy, vis, m->cmap, "white", &m->white);
+#endif
 
 	/*** Make some clever Guesses ***/
 
@@ -551,8 +569,10 @@ static errr Metadpy_init_2(Display *dpy, cptr name)
 	m->bg = m->black;
 	m->fg = m->white;
 
+#ifndef USE_XFT
 	/* Calculate the Maximum allowed Pixel value.  */
 	m->zg = (1 << m->depth) - 1;
+#endif
 
 	/* Save various default Flag Settings */
 	m->color = ((m->depth > 1) ? 1 : 0);
@@ -667,6 +687,7 @@ static errr Infowin_nuke(void)
 	if (iwin->nuke)
 	{
 		/* Destory the old window */
+		XftDrawDestropy(iwin->draw);
 		XDestroyWindow(Metadpy->dpy, iwin->win);
 	}
 
@@ -694,6 +715,12 @@ static errr Infowin_prepare(Window xid)
 
 	/* Check For Error XXX Extract some ACTUAL data from 'xid' */
 	XGetGeometry(Metadpy->dpy, xid, &tmp_win, &x, &y, &w, &h, &b, &d);
+
+#ifdef USE_XFT
+	Visual *vis = DefaultVisual(Metadpy->dpy, 0);
+	assert(vis->class == TrueColor);
+	iwin->draw = XftDrawCreate(Metadpy->dpy, iwin->win, DefaultVisual(Metadpy->dpy, 0), Metadpy->cmap);
+#endif
 
 	/* Apply the above info */
 	iwin->x = x;
@@ -782,7 +809,11 @@ static errr Infowin_init_data(Window dad, int x, int y, int w, int h,
 /* #endif */
 
 	/* Create the Window XXX Error Check */
+#ifdef USE_XFT
+	xid = XCreateSimpleWindow(Metadpy->dpy, dad, x, y, w, h, b, fg.pixel, bg.pixel);
+#else
 	xid = XCreateSimpleWindow(Metadpy->dpy, dad, x, y, w, h, b, fg, bg);
+#endif
 
 	/* Start out selecting No events */
 	XSelectInput(Metadpy->dpy, xid, 0L);
@@ -1127,15 +1158,18 @@ static errr Infoclr_init_data(Pixell fg, Pixell bg, int op, int stip)
 {
 	infoclr *iclr = Infoclr;
 
+#ifndef USE_XFT
 	GC gc;
 	XGCValues gcv;
 	unsigned long gc_mask;
+#endif
 
 
 
 	/*** Simple error checking of opr and clr ***/
 
 	/* Check the 'Pixells' for realism */
+#ifndef USE_XFT
 	if (bg > Metadpy->zg) return (-1);
 	if (fg > Metadpy->zg) return (-1);
 
@@ -1170,6 +1204,7 @@ static errr Infoclr_init_data(Pixell fg, Pixell bg, int op, int stip)
 
 	/* Create the GC detailed above */
 	gc = XCreateGC(Metadpy->dpy, Metadpy->root, gc_mask, &gcv);
+#endif
 
 
 	/*** Initialize ***/
@@ -1177,8 +1212,10 @@ static errr Infoclr_init_data(Pixell fg, Pixell bg, int op, int stip)
 	/* Wipe the iclr clean */
 	(void)WIPE(iclr, infoclr);
 
+#ifndef USE_XFT
 	/* Assign the GC */
 	iclr->gc = gc;
+#endif
 
 	/* Nuke it when done */
 	iclr->nuke = 1;
@@ -1206,6 +1243,9 @@ static errr Infoclr_change_fg(Pixell fg)
 	infoclr *iclr = Infoclr;
 
 
+#ifdef USE_XFT
+	Infoclr->fg = fg;
+#else
 	/*** Simple error checking of opr and clr ***/
 
 	/* Check the 'Pixells' for realism */
@@ -1216,6 +1256,7 @@ static errr Infoclr_change_fg(Pixell fg)
 
 	/* Change */
 	XSetForeground(Metadpy->dpy, iclr->gc, fg);
+#endif
 
 	/* Success */
 	return (0);
@@ -1647,6 +1688,8 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 		/* Be sure the correct font is ready */
 		XSetFont(Metadpy->dpy, Infoclr->gc, Infofnt->info->fid);
 #endif
+	/* TODO */
+#ifndef USE_XFT
 		/* Do each character */
 		for (i = 0; i < len; ++i)
 		{
@@ -1654,6 +1697,7 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 			XDrawImageString(Metadpy->dpy, Infowin->win, Infoclr->gc,
 					 x + i * Infofnt->wid + Infofnt->off, y, str + i, 1);
 		}
+#endif
 	}
 
 	/* Assume monoospaced font */
@@ -1683,35 +1727,20 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 		XmbDrawImageString(Metadpy->dpy, Infowin->win, Infofnt->info,
 				Infoclr->gc, x, y, kanji, kp-kanji);
 #else
-		Colormap cmap = DefaultColormap(Metadpy->dpy, 0);
-		XftColor fgcolor, bgcolor;
-		XRenderColor xcol = {0};
-		xcol.red = ((Infoclr->fg >> 16) & 0xff) << 8;
-		xcol.green = ((Infoclr->fg >> 8) & 0xff) << 8;
-		xcol.blue = ((Infoclr->fg >> 0) & 0xff) << 8;
-		xcol.alpha = 0xffff;
-		XftColorAllocValue(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &xcol, &fgcolor);
-		xcol.red = ((Infoclr->bg >> 16) & 0xff) << 8;
-		xcol.green = ((Infoclr->bg >> 8) & 0xff) << 8;
-		xcol.blue = ((Infoclr->bg >> 0) & 0xff) << 8;
-		XftColorAllocValue(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &xcol, &bgcolor);
 #define FONT_NAME "Migu 1M"
 #define FONT_SIZE 22
-		XftDraw* draw = XftDrawCreate(Metadpy->dpy, Infowin->win,
-					      DefaultVisual(Metadpy->dpy, 0), cmap);
+		Colormap cmap = Metadpy->cmap;
+		XftDraw* draw = Infowin->draw;
 		XftFont* xftFont = XftFontOpen(Metadpy->dpy, 0,
 					       XFT_FAMILY, XftTypeString, FONT_NAME,
 					       XFT_SIZE, XftTypeDouble, (double)(FONT_SIZE), NULL);
 		XGlyphInfo extents;
 		XftTextExtentsUtf8(Metadpy->dpy, xftFont, kanji, strlen(kanji), &extents);
-		XftDrawRect(draw, &bgcolor, x, y-Infofnt->asc,
+		XftDrawRect(draw, &Infoclr->bg, x, y-Infofnt->asc,
 			    Infofnt->wid*len, Infofnt->hgt);
-		XftDrawStringUtf8(draw, &fgcolor, xftFont,
+		XftDrawStringUtf8(draw, &Infoclr->fg, xftFont,
 				  x, y-Infofnt->asc+xftFont->ascent,
 				  (FcChar8*)kanji, strlen(kanji));
-		XftDrawDestroy(draw);
-		XftColorFree(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &fgcolor);
-		XftColorFree(Metadpy->dpy, DefaultVisual(Metadpy->dpy, 0), cmap, &bgcolor);
 		free(kanji);
 #endif
 #else /* USE_FONTSET */
@@ -1763,7 +1792,11 @@ static errr Infofnt_text_non(int x, int y, cptr str, int len)
 	/*** Actually 'paint' the area ***/
 
 	/* Just do a Fill Rectangle */
+#ifdef USE_XFT
+	XftDrawRect(Infowin->draw, &Infoclr->fg, x, y, w, h);
+#else
 	XFillRectangle(Metadpy->dpy, Infowin->win, Infoclr->gc, x, y, w, h);
+#endif
 
 	/* Success */
 	return (0);
@@ -2063,8 +2096,12 @@ static void mark_selection_mark(int x1, int y1, int x2, int y2)
 {
 	square_to_pixel(&x1, &y1, x1, y1);
 	square_to_pixel(&x2, &y2, x2, y2);
+#ifndef USE_XFT
 	XDrawRectangle(Metadpy->dpy, Infowin->win, clr[2]->gc, x1, y1,
 		x2-x1+Infofnt->wid - 1, y2-y1+Infofnt->hgt - 1);
+#else
+	XftDrawRect(Infowin->draw, &clr[2]->fg, x1, y1, x2-x1+Infofnt->wid - 1, y2-y1+Infofnt->hgt - 1);
+#endif
 }
 
 /*
@@ -3055,6 +3092,16 @@ static errr Term_curs_x11(int x, int y)
 {
 	if (use_graphics)
 	{
+#ifdef USE_XFT
+		XftDrawRect(Infowin->draw, &xor->fg,
+			    x * Infofnt->wid + Infowin->ox,
+			    y * Infofnt->hgt + Infowin->oy,
+			    Infofnt->wid - 1, Infofnt->hgt - 1);
+		XftDrawRect(Infowin->draw, &xor->fg,
+			    x * Infofnt->wid + Infowin->ox + 1,
+			    y * Infofnt->hgt + Infowin->oy + 1,
+			    Infofnt->wid - 3, Infofnt->hgt - 3);
+#else
 		XDrawRectangle(Metadpy->dpy, Infowin->win, xor->gc,
 			       x * Infofnt->wid + Infowin->ox,
 			       y * Infofnt->hgt + Infowin->oy,
@@ -3063,6 +3110,7 @@ static errr Term_curs_x11(int x, int y)
 			       x * Infofnt->wid + Infowin->ox + 1,
 			       y * Infofnt->hgt + Infowin->oy + 1,
 			       Infofnt->wid - 3, Infofnt->hgt - 3);
+#endif
 	}
 	else
 	{
@@ -3085,6 +3133,16 @@ static errr Term_bigcurs_x11(int x, int y)
 {
 	if (use_graphics)
 	{
+#ifdef USE_XFT
+		XftDrawRect(Infowin->draw, &xor->fg,
+			    x * Infofnt->wid + Infowin->ox,
+			    y * Infofnt->hgt + Infowin->oy,
+			    Infofnt->twid - 1, Infofnt->hgt - 1);
+		XftDrawRect(Infowin->draw, &xor->fg,
+			    x * Infofnt->wid + Infowin->ox + 1,
+			    y * Infofnt->hgt + Infowin->oy + 1,
+			    Infofnt->twid - 3, Infofnt->hgt - 3);
+#else
 		XDrawRectangle(Metadpy->dpy, Infowin->win, xor->gc,
 			       x * Infofnt->wid + Infowin->ox,
 			       y * Infofnt->hgt + Infowin->oy,
@@ -3093,6 +3151,7 @@ static errr Term_bigcurs_x11(int x, int y)
 			       x * Infofnt->wid + Infowin->ox + 1,
 			       y * Infofnt->hgt + Infowin->oy + 1,
 			       Infofnt->twid - 3, Infofnt->hgt - 3);
+#endif
 	}
 	else
 	{
@@ -3146,6 +3205,7 @@ static errr Term_text_x11(int x, int y, int n, byte a, cptr s)
 
 
 #ifdef USE_GRAPHICS
+#ifndef USE_XFT
 
 /*
  * Draw some graphical characters.
@@ -3235,7 +3295,9 @@ static errr Term_pict_x11(int x, int y, int n, const byte *ap, const char *cp, c
 					}
 					
 					/* Store into the temp storage. */
+#ifndef USE_XFT
 					XPutPixel(td->TmpImage, k, l, pixel);
+#endif
 				}
 			}
 
@@ -3257,6 +3319,7 @@ static errr Term_pict_x11(int x, int y, int n, const byte *ap, const char *cp, c
 	return (0);
 }
 
+#endif /* !USE_XFT */
 #endif /* USE_GRAPHICS */
 
 #ifdef USE_XIM
@@ -3881,6 +3944,7 @@ errr init_x11(int argc, char *argv[])
 #endif
 
 #ifdef USE_GRAPHICS
+#ifndef USE_XFT
 
 	/* Try graphics */
 	switch (arg_graphics)
@@ -3978,6 +4042,7 @@ errr init_x11(int argc, char *argv[])
 		/* Free tiles_raw? XXX XXX */
 	}
 
+#endif /* !USE_XFT */
 #endif /* USE_GRAPHICS */
 
 
