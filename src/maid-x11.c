@@ -9,6 +9,9 @@
  */
 
 #ifdef USE_X11
+#ifdef USE_XFT
+#undef USE_GRAPHICS
+#endif
 
 #include <math.h>
 
@@ -120,7 +123,6 @@ static unsigned long create_pixel(Display *dpy, byte red, byte green, byte blue)
 #ifdef USE_XFT
 	XftColor color;
 	XRenderColor xcol;
-	Visual *vis = DefaultVisual(dpy, 0);
 	xcol.red = xcolour.red;
 	xcol.green = xcolour.green;
 	xcol.blue = xcolour.blue;
@@ -246,11 +248,7 @@ static XImage *ReadBMP(Display *dpy, char *Name)
 
 	int x, y;
 
-#ifdef USE_XFT
-	XftColor clr_pixels[256];
-#else
 	unsigned long clr_pixels[256];
-#endif
 
 
 	/* Open the BMP file */
@@ -342,9 +340,6 @@ static XImage *ReadBMP(Display *dpy, char *Name)
 			/* Verify not at end of file XXX XXX */
 			if (feof(f)) quit_fmt("Unexpected end of file in %s", Name);
 
-#ifdef USE_XFT
-			quit_fmt("Not supported on Xft");
-#else
 			if (infoheader.biBitCount == 24)
 			{
 				int c2 = getc(f);
@@ -371,7 +366,6 @@ static XImage *ReadBMP(Display *dpy, char *Name)
 				quit_fmt("Illegal biBitCount %d in %s",
 					 infoheader.biBitCount, Name);
 			}
-#endif
 		}
 	}
 

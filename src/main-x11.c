@@ -356,7 +356,9 @@ struct infoclr
  */
 struct infofnt
 {
-#ifdef USE_FONTSET
+#if defined(USE_XFT)
+	XftFont *info;
+#elif defined(USE_FONTSET)
 	XFontSet info;
 #else
 	XFontStruct *info;
@@ -1295,7 +1297,9 @@ static errr Infofnt_nuke(void)
 	if (ifnt->nuke)
 	{
 		/* Free the font */
-#ifdef USE_FONTSET
+#if defined(USE_XFT)
+		XftFontClose(Metadpy->dpy, ifnt->info);
+#elif defined(USE_FONTSET)
 		XFreeFontSet(Metadpy->dpy, ifnt->info);
 #else
 		XFreeFont(Metadpy->dpy, ifnt->info);
@@ -1319,14 +1323,14 @@ static errr Infofnt_nuke(void)
 /*
  * Prepare a new 'infofnt'
  */
-#ifdef USE_JP_FONTSTRUCT
+#if defined(USE_XFT)
+static errr Infofnt_prepare(XftFont *info)
+#elif defined(USE_JP_FONTSTRUCT)
 static errr Infofnt_prepare(XFontStruct *info, XFontStruct *kinfo)
-#else
-#ifdef USE_FONTSET
+#elif defined(USE_FONTSET)
 static errr Infofnt_prepare(XFontSet info)
 #else
 static errr Infofnt_prepare(XFontStruct *info)
-#endif
 #endif
 
 {
@@ -1336,7 +1340,8 @@ static errr Infofnt_prepare(XFontStruct *info)
 	infofnt *ikfnt = Infokfnt;
 #endif
 	XCharStruct *cs;
-#ifdef USE_FONTSET
+#if defined(USE_XFT)
+#elif defined(USE_FONTSET)
 	XFontStruct **fontinfo;
 	char **fontname;
 	int n_fonts;
@@ -1346,7 +1351,11 @@ static errr Infofnt_prepare(XFontStruct *info)
 	/* Assign the struct */
 	ifnt->info = info;
 
-#ifdef USE_FONTSET
+#if defined(USE_XFT)
+	ifnt->asc = info->ascent;
+	ifnt->hgt = info->ascent + info->descent;
+	ifnt->wid = (info->max_advance_width+1)/2;
+#elif defined(USE_FONTSET)
 	n_fonts = XFontsOfFontSet(info, &fontinfo, &fontname);
 
 	ascent = descent = width = 0;
@@ -1412,14 +1421,13 @@ static errr Infofnt_prepare(XFontStruct *info)
 /*
  * Initialize a new 'infofnt'.
  */
-#ifdef USE_JP_FONTSTRUCT
+#if defined(USE_XFT)
+#elif defined(USE_JP_FONTSTRUCT)
 static errr Infofnt_init_real(XFontStruct *info, XFontStruct *kinfo)
-#else
-#ifdef USE_FONTSET
+#elif defined(USE_FONTSET)
 static errr Infofnt_init_real(XFontSet info)
 #else
 static errr Infofnt_init_real(XFontStruct *info)
-#endif
 #endif
 
 {
@@ -1460,7 +1468,9 @@ static void Infofnt_init_data(cptr name)
 #endif
 
 {
-#ifdef USE_FONTSET
+#if defined(USE_XFT)
+	XftFont *info;
+#elif defined(USE_FONTSET)
 	XFontSet info;
 	char **missing_list;
 	int missing_count;
@@ -1482,7 +1492,14 @@ static void Infofnt_init_data(cptr name)
 	if (!kname || !*kname) quit("Missing kanji font!");
 #endif
 	/* Attempt to load the font */
-#ifdef USE_FONTSET
+#if defined(USE_XFT)
+	#define FONT_NAME "Migu 1M"
+	#define FONT_SIZE 18
+	info = XftFontOpen(Metadpy->dpy, 0,
+				 XFT_FAMILY, XftTypeString, FONT_NAME,
+				 XFT_SIZE, XftTypeDouble, (double)(FONT_SIZE), NULL);
+		/* TODO: error handling */
+#elif defined(USE_FONTSET)
 	info = XCreateFontSet(Metadpy->dpy, name, &missing_list, &missing_count, &default_font);
 	if(missing_count > 0){
 		printf("missing font(s): \n");
@@ -1525,7 +1542,7 @@ static void Infofnt_init_data(cptr name)
 	{
 		/* Free the font */
 #ifdef USE_FONTSET
-		XFreeFontSet(Metadpy->dpy, info);
+		XftFontClose(Metadpy->dpy, info);
 #else
 		XFreeFont(Metadpy->dpy, info);
 #ifdef USE_JP_FONTSTRUCT
@@ -1555,7 +1572,7 @@ static void Infofnt_init_data(cptr name)
  * EUC日本語コードを含む文字列を表示する (Xlib)
  */
 static void
-XDrawMultiString(display,d,gc, x, y, string, len, afont, 
+XDrawMultiString(display,d,gc, x, y, string, len, afont,
       afont_width, afont_height, afont_ascent, kfont, kfont_width)
     Display *display;
     Drawable d;
@@ -1709,7 +1726,7 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 		XDrawMultiString(Metadpy->dpy, Infowin->win, Infoclr->gc,
 				 x, y, str, len,
 				 Infofnt->info, Infofnt->wid, Infofnt->hgt,
-				 Infofnt->asc, 
+				 Infofnt->asc,
 				 Infokfnt->info, Infofnt->wid * 2);
 #else
 #ifdef USE_FONTSET
@@ -1719,29 +1736,31 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 		size_t outlen = len * 2;
 		char *kanji = malloc(outlen);
 		memset(kanji, 0, outlen);
-		char *sp = str; char *kp = kanji;
-		size_t n = iconv(cd, &sp, &inlen, &kp, &outlen);
+		char *start = strdup(str);
+		char *sp = start; char *kp = kanji;
+		iconv(cd, &sp, &inlen, &kp, &outlen);
 		iconv_close(cd);
+		free(start);
 
-#ifndef USE_XFT
-		XmbDrawImageString(Metadpy->dpy, Infowin->win, Infofnt->info,
-				Infoclr->gc, x, y, kanji, kp-kanji);
-#else
-#define FONT_NAME "Migu 1M"
-#define FONT_SIZE 22
-		Colormap cmap = Metadpy->cmap;
+#ifdef USE_XFT
 		XftDraw* draw = Infowin->draw;
-		XftFont* xftFont = XftFontOpen(Metadpy->dpy, 0,
-					       XFT_FAMILY, XftTypeString, FONT_NAME,
-					       XFT_SIZE, XftTypeDouble, (double)(FONT_SIZE), NULL);
-		XGlyphInfo extents;
-		XftTextExtentsUtf8(Metadpy->dpy, xftFont, kanji, strlen(kanji), &extents);
-		XftDrawRect(draw, &Infoclr->bg, x, y-Infofnt->asc,
-			    Infofnt->wid*len, Infofnt->hgt);
-		XftDrawStringUtf8(draw, &Infoclr->fg, xftFont,
-				  x, y-Infofnt->asc+xftFont->ascent,
-				  (FcChar8*)kanji, strlen(kanji));
+
+		XRectangle r;
+		r.x = 0;
+		r.y = 0;
+		r.width = Infofnt->wid*len;
+		r.height = Infofnt->hgt;
+		XftDrawSetClipRectangles(draw, x, y-Infofnt->asc, &r, 1);
+		XftDrawRect(draw, &Infoclr->bg, x, y-Infofnt->asc, Infofnt->wid*len, Infofnt->hgt);
+		XftDrawStringUtf8(draw, &Infoclr->fg, Infofnt->info, x, y,
+			 (FcChar8*)kanji, strlen(kanji));
+		XftDrawSetClip(draw, 0);
+		XFlush(Metadpy->dpy);
+		XSync(Metadpy->dpy, 0);
 		free(kanji);
+#else
+		XmbDrawImageString(Metadpy->dpy, Infowin->win, Infofnt->info,
+			Infoclr->gc, x, y, kanji, kp-kanji);
 #endif
 #else /* USE_FONTSET */
 		XDrawImageString(Metadpy->dpy, Infowin->win, Infoclr->gc,
