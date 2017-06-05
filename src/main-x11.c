@@ -1354,7 +1354,10 @@ static errr Infofnt_prepare(XFontStruct *info)
 #if defined(USE_XFT)
 	ifnt->asc = info->ascent;
 	ifnt->hgt = info->ascent + info->descent;
-	ifnt->wid = (info->max_advance_width+1)/2;
+	const char *text = "A";
+	XGlyphInfo extent;
+	XftTextExtentsUtf8(Metadpy->dpy, info, (FcChar8*)text, strlen(text), &extent);
+	ifnt->wid = extent.xOff;
 #elif defined(USE_FONTSET)
 	n_fonts = XFontsOfFontSet(info, &fontinfo, &fontname);
 
@@ -1493,12 +1496,8 @@ static void Infofnt_init_data(cptr name)
 #endif
 	/* Attempt to load the font */
 #if defined(USE_XFT)
-	#define FONT_NAME "Migu 1M"
-	#define FONT_SIZE 18
-	info = XftFontOpen(Metadpy->dpy, 0,
-				 XFT_FAMILY, XftTypeString, FONT_NAME,
-				 XFT_SIZE, XftTypeDouble, (double)(FONT_SIZE), NULL);
-		/* TODO: error handling */
+	info = XftFontOpenName(Metadpy->dpy, 0, name);
+	/* TODO: error handling */
 #elif defined(USE_FONTSET)
 	info = XCreateFontSet(Metadpy->dpy, name, &missing_list, &missing_count, &default_font);
 	if(missing_count > 0){

@@ -409,6 +409,10 @@
 /*
  * OPTION: Default font (when using X11).
  */
+#ifdef USE_XFT
+#define DEFAULT_X11_FONT "monospace-24:lang=ja:spacing=90"
+#define DEFAULT_X11_FONT_SUB "sans-serif-16:lang=ja"
+#else
 #define DEFAULT_X11_FONT \
 	"-*-*-medium-r-normal--24-*-*-*-*-*-iso8859-1" \
 	",-*-*-medium-r-normal--24-*-*-*-*-*-jisx0208.1983-0"
@@ -417,6 +421,7 @@
 #define DEFAULT_X11_FONT_SUB \
 	"-*-*-medium-r-normal--16-*-*-*-*-*-iso8859-1" \
 	",-*-*-medium-r-normal--16-*-*-*-*-*-jisx0208.1983-0"
+#endif
 /*	"8x16" \
 	",kanji16"*/
 
