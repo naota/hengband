@@ -3074,7 +3074,11 @@ static errr Term_xtra_x11(int n, int v)
 #endif
 
 		/* Flush the output XXX XXX */
+#ifdef USE_XFT
+		case TERM_XTRA_FRESH: Metadpy_update(1, 1, 0); return (0);
+#else
 		case TERM_XTRA_FRESH: Metadpy_update(1, 0, 0); return (0);
+#endif
 
 		/* Process random events XXX */
 		case TERM_XTRA_BORED: return (CheckEvent(0));
