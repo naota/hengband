@@ -556,13 +556,13 @@ static errr Metadpy_init_2(Display *dpy, cptr name)
 	m->depth = DefaultDepthOfScreen(m->screen);
 
 	/* Save the Standard Colors */
-#ifndef USE_XFT
-	m->black = BlackPixelOfScreen(m->screen);
-	m->white = WhitePixelOfScreen(m->screen);
-#else
+#ifdef USE_XFT
 	Visual *vis = DefaultVisual(dpy, 0);
 	XftColorAllocName(dpy, vis, m->cmap, "black", &m->black);
 	XftColorAllocName(dpy, vis, m->cmap, "white", &m->white);
+#else
+	m->black = BlackPixelOfScreen(m->screen);
+	m->white = WhitePixelOfScreen(m->screen);
 #endif
 
 	/*** Make some clever Guesses ***/
@@ -689,7 +689,9 @@ static errr Infowin_nuke(void)
 	if (iwin->nuke)
 	{
 		/* Destory the old window */
+#ifdef USE_XFT
 		XftDrawDestropy(iwin->draw);
+#endif
 		XDestroyWindow(Metadpy->dpy, iwin->win);
 	}
 
@@ -1340,8 +1342,7 @@ static errr Infofnt_prepare(XFontStruct *info)
 	infofnt *ikfnt = Infokfnt;
 #endif
 	XCharStruct *cs;
-#if defined(USE_XFT)
-#elif defined(USE_FONTSET)
+#if !defined(USE_XFT) && defined(USE_FONTSET)
 	XFontStruct **fontinfo;
 	char **fontname;
 	int n_fonts;
@@ -1573,7 +1574,7 @@ static void Infofnt_init_data(cptr name)
  * EUC日本語コードを含む文字列を表示する (Xlib)
  */
 static void
-XDrawMultiString(display,d,gc, x, y, string, len, afont,
+XDrawMultiString(display,d,gc, x, y, string, len, afont, 
       afont_width, afont_height, afont_ascent, kfont, kfont_width)
     Display *display;
     Drawable d;
@@ -1727,7 +1728,7 @@ static errr Infofnt_text_std(int x, int y, cptr str, int len)
 		XDrawMultiString(Metadpy->dpy, Infowin->win, Infoclr->gc,
 				 x, y, str, len,
 				 Infofnt->info, Infofnt->wid, Infofnt->hgt,
-				 Infofnt->asc,
+				 Infofnt->asc, 
 				 Infokfnt->info, Infofnt->wid * 2);
 #else
 #ifdef USE_FONTSET
@@ -3229,7 +3230,6 @@ static errr Term_text_x11(int x, int y, int n, byte a, cptr s)
 
 
 #ifdef USE_GRAPHICS
-#ifndef USE_XFT
 
 /*
  * Draw some graphical characters.
@@ -3319,9 +3319,7 @@ static errr Term_pict_x11(int x, int y, int n, const byte *ap, const char *cp, c
 					}
 					
 					/* Store into the temp storage. */
-#ifndef USE_XFT
 					XPutPixel(td->TmpImage, k, l, pixel);
-#endif
 				}
 			}
 
@@ -3343,7 +3341,6 @@ static errr Term_pict_x11(int x, int y, int n, const byte *ap, const char *cp, c
 	return (0);
 }
 
-#endif /* !USE_XFT */
 #endif /* USE_GRAPHICS */
 
 #ifdef USE_XIM
@@ -3968,7 +3965,6 @@ errr init_x11(int argc, char *argv[])
 #endif
 
 #ifdef USE_GRAPHICS
-#ifndef USE_XFT
 
 	/* Try graphics */
 	switch (arg_graphics)
@@ -4066,7 +4062,6 @@ errr init_x11(int argc, char *argv[])
 		/* Free tiles_raw? XXX XXX */
 	}
 
-#endif /* !USE_XFT */
 #endif /* USE_GRAPHICS */
 
 

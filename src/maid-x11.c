@@ -9,9 +9,6 @@
  */
 
 #ifdef USE_X11
-#ifdef USE_XFT
-#undef USE_GRAPHICS
-#endif
 
 #include <math.h>
 
@@ -118,7 +115,6 @@ static unsigned long create_pixel(Display *dpy, byte red, byte green, byte blue)
 	xcolour.green = green * 255;
 	xcolour.blue = blue * 255;
 	xcolour.flags = DoRed | DoGreen | DoBlue;
-
 
 #ifdef USE_XFT
 	XftColor color;

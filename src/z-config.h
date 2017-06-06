@@ -281,7 +281,9 @@
 /*
  * OPTION: Allow the use of "graphics" in various places
  */
+#ifndef USE_XFT
 #define USE_GRAPHICS
+#endif
 
 /*
  * OPTION: Allow the use of "music" in various places
