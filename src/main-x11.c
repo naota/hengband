@@ -1540,8 +1540,10 @@ static void Infofnt_init_data(cptr name)
 
 	{
 		/* Free the font */
-#ifdef USE_FONTSET
+#if defined(USE_FONTSET) && defined(USE_XFT)
 		XftFontClose(Metadpy->dpy, info);
+#elif defined(USE_FONTSET)
+		XFreeFontSet(Metadpy->dpy, info);
 #else
 		XFreeFont(Metadpy->dpy, info);
 #ifdef USE_JP_FONTSTRUCT
